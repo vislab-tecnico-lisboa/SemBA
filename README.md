@@ -56,5 +56,6 @@ url = {https://www.sciencedirect.com/science/article/pii/S0925231226002572},
 author = {João Luzio and Alexandre Bernardino and Plinio Moreno},
 }
 ```
-Please use these citations if you use this code, our *SemBA* framework, or the *Multi-Scale Fovea* mechanism.
-Please directly contact **João Luzio** (```joaoluzio14@tecnico.ulisboa.pt```) for any further enquiry.
+Please use these citations if you come to work with this code, our *SemBA* framework, or the *Multi-Scale Fovea* mechanism.
+
+Please directly contact [*João Luzio*](https://sites.google.com/view/joaoluzio) at ```joaoluzio14@tecnico.ulisboa.pt``` for any further enquiry.
