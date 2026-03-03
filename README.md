@@ -1,12 +1,12 @@
-# Semantic-based Bayesian Attention (SemBA) Framework
+# Semantic-based Bayesian Attention Framework
 
 ![Static Badge](https://img.shields.io/badge/Python-3.10.12-blue)
 
-*SemBA* (**Semantic-based Bayesian Attention**) is a top-down probabilistic framework for human scanpath prediction in visual search. It leverages pretrained deep object detectors to extract semantic cues at each fixation and fuses them over time using a Bayesian update mechanism based on Dirichlet beliefs. At every step, *SemBA* builds and updates class-specific semantic belief maps, selecting the next fixation by maximizing the posterior probability of the target class while applying inhibition of return. By integrating artificial foveation to mimic retinal eccentricity and reduce computational cost, SemBA achieves biologically inspired, cost-efficient active perception without relying on human scanpath supervision, closely approximating human search behavior on benchmarks such as [COCO-Search18](https://sites.google.com/view/cocosearch/).
+*SemBA* (**Semantic-based Bayesian Attention**) is a top-down probabilistic framework for human scanpath prediction in visual search. It leverages pretrained deep object detectors to extract semantic cues at each fixation and fuses them over time using a Bayesian update mechanism based on Dirichlet beliefs. At every step, *SemBA* builds and updates class-specific semantic belief maps, selecting the next fixation by maximizing the posterior probability of the target class while applying inhibition of return. By integrating artificial foveation to mimic retinal eccentricity and reduce computational cost, *SemBA* achieves biologically inspired, cost-efficient active perception without relying on human scanpath supervision, closely approximating human search behavior on benchmarks such as [COCO-Search18](https://sites.google.com/view/cocosearch/).
 
 *SemBA* integrates the **Multi-Scale Fovea** mechanism, that approximates the dynamics of the human field-of-view. At each fixation, it crops several increasingly larger regions around the gaze point, downsamples them to the same size, and runs object detection on each scale. This reduces computational cost while preserving central detail and introducing realistic peripheral uncertainty.
 
-The code contained in this repository was developed and tested on Python 3.10.12.
+The code contained in this repository was developed and tested on *Python 3.10.12*.
 
 ## Installation
 
