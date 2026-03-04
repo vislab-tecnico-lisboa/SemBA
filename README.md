@@ -32,6 +32,8 @@ pip install -r requirements.txt
 python search.py -f examples/bottle.jpg -t bottle -d dfine -l 4 -b 160
 ```
 
+- Check if results are saved under the directory ```runs/run_1``` 
+
 ## Reference
 This repository contains code for the SemBA pipeline, described in the following papers: 
 ```bibtex
@@ -56,6 +58,6 @@ url = {https://www.sciencedirect.com/science/article/pii/S0925231226002572},
 author = {João Luzio and Alexandre Bernardino and Plinio Moreno},
 }
 ```
-Please use these citations if you come to work with this code, our *SemBA* framework, or the *Multi-Scale Fovea* mechanism.
+Please use these citations if you come to work with this code, our *SemBA* framework, or the *Multi-Scale Fovea*.
 
 Please directly contact [*João Luzio*](https://sites.google.com/view/joaoluzio) at ```joaoluzio14@tecnico.ulisboa.pt``` for any further enquiry.

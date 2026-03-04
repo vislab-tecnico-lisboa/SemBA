@@ -31,7 +31,7 @@ def create_dir(base_folder):
     new_folder = os.path.join(base_folder, f"run_{next_k}")
     os.makedirs(new_folder)
 
-    print(f"\nResults for this run ({next_k}) are saved in: {new_folder}")
+    print(f"\nResults for this run ({next_k}) are saved in: {new_folder}\n")
 
     return new_folder
 

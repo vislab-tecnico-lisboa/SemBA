@@ -175,6 +175,8 @@ def main():
 
         avg_time = time_count/(fixations+1)
 
+    print("\nAverage time per fixation: {:.2f} seconds\n".format(avg_time))
+
     # create a directgory to store the results
     path = utils.create_dir("runs/")
 
@@ -186,8 +188,6 @@ def main():
     xs = np.array([c['X'] for c in ctrs])
     ys = np.array([c['Y'] for c in ctrs])
     utils.plot_scanpath(img, xs, ys, file_name=path+"/scanpath.png")
-
-    print("\nAverage time per fixation: {:.2f} seconds\n".format(avg_time))
 
 if __name__ == "__main__":
     main()
