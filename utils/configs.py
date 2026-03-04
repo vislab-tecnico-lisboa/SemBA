@@ -9,11 +9,12 @@ TERMINATION_THRESH = 0.1 # termination cell confidence threshold (between 0 and 
 CONF_THRESH = 0.01 # minimum confidence threshold to discard an object detection
 
 # Deep Object Detectors (with Pre-Trained Weights)
-DETECTORS = {'detr', 'dfine', 'rtdetr', 'rtdetr2'}
+DETECTORS = {'detr', 'dfine', 'rtdetr', 'rtdetr2', 'custom'}
 DETR_MODEL = "facebook/detr-resnet-50"
 DFINE_MODEL = "ustc-community/dfine_x_coco"
 RTDETR_MODEL = "PekingU/rtdetr_r50vd"
 RTDETR2_MODEL = "PekingU/rtdetr_v2_r18vd"
+CUSTOM_MODEL = None # replace with pre-trained weights
 
 # Target Object Categories
 CLASS_NAMES = [ 'background', 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus',

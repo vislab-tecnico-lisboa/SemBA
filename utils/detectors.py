@@ -1,6 +1,6 @@
-#############################################################################################################################
-# Sematic Information Model Functions
-#############################################################################################################################
+###################################################################################################################
+# Deeop Object Detection Model Functions                                                                          #
+###################################################################################################################
 
 import torch
 from utils.configs import *
@@ -17,6 +17,9 @@ from transformers import RTDetrForObjectDetection, RTDetrImageProcessor
 # RT-DETR v2
 from transformers import RTDetrV2ForObjectDetection
 
+# Custom model import
+# from transformers import *
+
 def load_model(objdet, base_dim):
 
     if objdet == "detr":
@@ -27,6 +30,7 @@ def load_model(objdet, base_dim):
 
     elif objdet == "dfine":
 
+        # D-FINE definition
         model = DFineForObjectDetection.from_pretrained(DFINE_MODEL)
         processor = AutoImageProcessor.from_pretrained(DFINE_MODEL)
 
@@ -42,9 +46,21 @@ def load_model(objdet, base_dim):
         model = RTDetrV2ForObjectDetection.from_pretrained(RTDETR2_MODEL)
         processor = RTDetrImageProcessor.from_pretrained(RTDETR2_MODEL)
 
+    elif objdet == "custom":
+
+        try:    
+            assert CUSTOM_MODEL != None, "Custom model is not defined. Please specify the pre-trained weights."
+        except AssertionError as error:
+            print(error)
+            exit(-1)
+
+        # Uncomment the following lines, replacing "CustomModel" with your model's name.
+        # model = CustomModelForObjectDetection.from_pretrained(CUSTOM_MODEL)
+        # processor = CustomModelProcessor.from_pretrained(CUSTOM_MODEL)
+
     else:
 
-        raise NameError(f"The script is not ready to utilize the selected model: {objdet}")
+        raise NameError(f"The script is not ready to utilize the specified model: {objdet}")
 
     # adapt the porcessor size to the actual size of the layers
     processor.size = {"shortest_edge": base_dim, "longest_edge": base_dim}

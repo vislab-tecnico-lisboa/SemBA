@@ -1,8 +1,8 @@
-############################################################################################################
-# Visual Search: Semantic-Based Bayesian Attention (SemBA) x Multi-Scale Fovea (MS-Fov)                    #  
-# Joao Luzio, Institute for Systems and Robotics, Técnico Lisboa, 2026                                     #  
-# example usage (1680x1050 image): python search.py -f examples/bottle.jpg -t bottle -d dfine -l 4 -b 160  #
-############################################################################################################
+#################################################################################################################
+# Visual Search: Semantic-Based Bayesian Attention (SemBA) x Multi-Scale Fovea (MS-Fov)                         #  
+# Joao Luzio, Institute for Systems and Robotics, Técnico Lisboa, 2026                                          #  
+# example usage (1680x1050 image): python search.py -f examples/bottle.jpg -t bottle -d dfine -l 4 -b 160       #
+#################################################################################################################
 
 import argparse
 import numpy as np
@@ -35,13 +35,13 @@ parser.add_argument('-t','--category', type=str, default='bottle', required=Fals
 parser.add_argument('-l','--levels', type=int, default=4, required=False)
 parser.add_argument('-b','--base_dim', type=int, default=160, required=False)
 
-############################################################################################################
-# Visual Target Search                                                                                     #
-############################################################################################################
+#################################################################################################################
+# Visual Target Search                                                                                          #
+#################################################################################################################
 
 def main():
 
-    # argument parsing (TO COMPLETE)
+    # argument parsing
     args = parser.parse_args()
     try:
         assert args.detector in DETECTORS, f"Unknown object detection model. Available options are: {DETECTORS}"
@@ -53,7 +53,7 @@ def main():
         else: is_detr = False
     except AssertionError as error:
         print(error)
-        return -1
+        exit(-1)
 
     # semantic maps (rows, columns)
     map_dim = (Y_CELLS,X_CELLS)
@@ -92,7 +92,7 @@ def main():
         
     # semba map fusion variables
     map = np.ones((map_dim[0], map_dim[1], total_classes))
-    curr_maps, ctrs = [], []
+    attention_maps, ctrs = [], []
 
     # target definition and success rate computation setup
     target_cls = CLASS_NAMES.index(args.category)
@@ -146,7 +146,7 @@ def main():
             # termination condition
             if target_map[ym,xm] >= TERMINATION_THRESH: break
 
-            curr_maps.append(target_map)
+            attention_maps.append(np.copy(target_map))
 
             # determine the next best focal point 
             while(True):
@@ -175,13 +175,19 @@ def main():
 
         avg_time = time_count/(fixations+1)
 
+    # create a directgory to store the results
+    path = utils.create_dir("runs/")
+
+    # generate attention maps and gif
+    for i in range(len(attention_maps)): utils.save_map(attention_maps[i], path, i)
+    utils.generate_gif(path,fps=2) 
+
+    # plot scanpath
     xs = np.array([c['X'] for c in ctrs])
     ys = np.array([c['Y'] for c in ctrs])
-    utils.plot_scanpath(img, xs, ys)
+    utils.plot_scanpath(img, xs, ys, file_name=path+"/scanpath.png")
 
-    print("\nStatistics and Metrics:\n")
-    print("Average time per fixation: {:.2f} seconds\n".format(avg_time))
-    print("\nResults saved!")
+    print("\nAverage time per fixation: {:.2f} seconds\n".format(avg_time))
 
 if __name__ == "__main__":
     main()

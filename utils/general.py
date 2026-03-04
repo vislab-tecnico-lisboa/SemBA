@@ -1,10 +1,46 @@
 ###############################################################################################
-# General Functions
+# General Functions for SemBA x MS-Fovea                                                      #
 ###############################################################################################
 
 import numpy as np
 import cv2 as cv
 import matplotlib.pyplot as plt
+import imageio
+from PIL import Image
+import os
+import re
+
+def create_dir(base_folder):
+
+    os.makedirs(base_folder, exist_ok=True)
+
+    pattern = re.compile(r"run_(\d+)$")
+    existing_k = []
+
+    for name in os.listdir(base_folder):
+        path = os.path.join(base_folder, name)
+
+        if os.path.isdir(path):
+            match = pattern.match(name)
+            if match:
+                existing_k.append(int(match.group(1)))
+
+    # Determine next k
+    next_k = max(existing_k, default=0) + 1
+
+    new_folder = os.path.join(base_folder, f"run_{next_k}")
+    os.makedirs(new_folder)
+
+    print(f"\nResults for this run ({next_k}) are saved in: {new_folder}")
+
+    return new_folder
+
+# save attention map
+def save_map(map, path, idx):
+    plt.imshow(map)
+    plt.axis('off')
+    plt.savefig(path+f"/map_fix{idx}.png",bbox_inches='tight',pad_inches=0,dpi=400)    
+    plt.clf() 
 
 def plot_scanpath(img, xs, ys, file_name="scanpath.png", title=None):
     fig, ax = plt.subplots()
@@ -12,22 +48,49 @@ def plot_scanpath(img, xs, ys, file_name="scanpath.png", title=None):
 
     for i in range(len(xs)):
         if i > 0:
-            plt.arrow(xs[i - 1], ys[i - 1], xs[i] - xs[i - 1], ys[i] - ys[i - 1], width=6, color='yellow', alpha=0.8)
+            plt.arrow(xs[i - 1], ys[i - 1],
+                        xs[i] - xs[i - 1],
+                        ys[i] - ys[i - 1],
+                        width=6,
+                        color='yellow',
+                        alpha=0.8)
 
     for i in range(len(xs)):
+
         cir_rad = 30
         if i == len(xs)-1:
-            circle = plt.Circle((xs[i], ys[i]), radius=cir_rad, edgecolor='pink', facecolor='lightgreen', alpha=1.0)
+            circle = plt.Circle((xs[i], ys[i]),
+                                radius=cir_rad, edgecolor='pink',
+                                facecolor='lightgreen', alpha=1.0)
         else:
-            circle = plt.Circle((xs[i], ys[i]), radius=cir_rad, edgecolor='red', facecolor='yellow', alpha=1.0)
+            circle = plt.Circle((xs[i], ys[i]),
+                                radius=cir_rad, edgecolor='red',
+                                facecolor='yellow', alpha=1.0)
         ax.add_patch(circle)
-        plt.annotate("{}".format(i), xy=(xs[i], ys[i]+3), fontsize=10, ha="center", va="center")
+        plt.annotate("{}".format(i), xy=(xs[i], ys[i]+3),
+                        fontsize=10, ha="center", va="center")
 
     ax.axis('off')
     if title is not None:
         ax.set_title(title)
     plt.savefig(file_name,bbox_inches='tight',pad_inches=0,dpi=300)
-    plt.show()
+    #plt.show()
+    plt.clf() 
+
+def generate_gif(path, fps=1):
+
+    images = []
+
+    for file_name in sorted(os.listdir(path)):
+        if file_name.endswith('.png'):
+            file_path = os.path.join(path, file_name)
+            images.append(imageio.imread(file_path))
+
+    # Make it pause at the end so that the viewers can ponder
+    #for _ in range(10):
+    #    images.append(imageio.imread(file_path))
+
+    imageio.mimsave(path+'/attention.gif', images, fps=fps)
 
 def get_size_level(max_size, levels, area):
 
@@ -145,7 +208,9 @@ def annotator(image,detections,labels,colors,n_classes):
         xmin, ymin, xmax, ymax = det[:4]
     
         label_text = f"{labels[int(det[-1])]}: {max(det[4:(n_classes+4)]):.2f}"
-        (text_width, text_height), baseline = cv.getTextSize(label_text, cv.FONT_HERSHEY_SIMPLEX, font_scale, 1)
+        (text_width, text_height), baseline = cv.getTextSize(label_text,
+                                                                cv.FONT_HERSHEY_SIMPLEX,
+                                                                font_scale, 1)
     
         # Draw rectangle and label with the same color for the same class
         cv.rectangle(img, (int(xmin), int(ymin)), (int(xmax), int(ymax)), color, 2)
