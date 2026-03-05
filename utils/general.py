@@ -6,10 +6,10 @@ import numpy as np
 import cv2 as cv
 import matplotlib.pyplot as plt
 import imageio
-from PIL import Image
 import os
 import re
 
+# create a new directory to save a new run
 def create_dir(base_folder):
 
     os.makedirs(base_folder, exist_ok=True)
@@ -42,6 +42,7 @@ def save_map(map, path, idx):
     plt.savefig(path+f"/map_fix{idx}.png",bbox_inches='tight',pad_inches=0,dpi=400)    
     plt.clf() 
 
+# print scanpath on top of the original image
 def plot_scanpath(img, xs, ys, file_name="scanpath.png", title=None):
     fig, ax = plt.subplots()
     ax.imshow(img)
