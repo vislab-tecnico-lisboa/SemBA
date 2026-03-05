@@ -29,8 +29,8 @@ from utils.configs import *
 # Argument Parser
 parser = argparse.ArgumentParser(
     description='Visual Search: Semantic-Based Bayesian Attention (SemBA) x Multi-Scale Fovea (MS-Fov)')
-parser.add_argument('-d','--detector', type=str, default='dfine', required=False)
 parser.add_argument('-f','--file_name', type=str, default='examples/bottle.jpg', required=False)
+parser.add_argument('-d','--detector', type=str, default='dfine', required=False)
 parser.add_argument('-t','--category', type=str, default='bottle', required=False)
 parser.add_argument('-l','--levels', type=int, default=4, required=False)
 parser.add_argument('-b','--base_dim', type=int, default=160, required=False)

@@ -36,6 +36,17 @@ python search.py -f examples/bottle.jpg -t bottle -d dfine -l 4 -b 160
 
 - Check if the results are saved under the directory ```runs/run_1``` 
 
+## Running Inference
+
+| Argument    | Short | Options                                                                  |
+| ---         | ---   | ---                                                                      |
+| --file_name | -f    | Either ´´´examples/\*.jpg´´´ or your own image file (*.jpg* or *.png*).  |
+| --detector  | -d    | Check the available ´´´DETECTORS´´´ on *utils/configs.py*!               |
+| --category  | -t    | Check the available ´´´CLASS_NAMES´´´ on *utils/configs.py*!             |
+| --levels    | -l    | Amount of *Multi-Scale Fovea* layers. Recommended 2,3,4, or 5.           |
+| --base_dim  | -b    | Square root of the total number of pixels per layer. Recommended >= 128. |
+
+
 ## Reference
 This repository contains code for the SemBA pipeline, described in the following papers: 
 ```bibtex
