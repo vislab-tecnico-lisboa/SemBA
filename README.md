@@ -49,15 +49,15 @@ This repository contains code for the SemBA pipeline, described in the following
 }
 
 @article{semba_fast,
-title = {SemBA-FAST: Semantic-based Bayesian attention applied to foveal active visual search tasks},
-journal = {Neurocomputing},
-volume = {673},
-pages = {132860},
-year = {2026},
-issn = {0925-2312},
-doi = {https://doi.org/10.1016/j.neucom.2026.132860},
-url = {https://www.sciencedirect.com/science/article/pii/S0925231226002572},
-author = {João Luzio and Alexandre Bernardino and Plinio Moreno},
+  title = {SemBA-FAST: Semantic-based Bayesian attention applied to foveal active visual search tasks},
+  journal = {Neurocomputing},
+  volume = {673},
+  pages = {132860},
+  year = {2026},
+  issn = {0925-2312},
+  doi = {https://doi.org/10.1016/j.neucom.2026.132860},
+  url = {https://www.sciencedirect.com/science/article/pii/S0925231226002572},
+  author = {João Luzio and Alexandre Bernardino and Plinio Moreno},
 }
 ```
 Please use these citations if you come to work with this code, our *SemBA* framework, or the *Multi-Scale Fovea*.
