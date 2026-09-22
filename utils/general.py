@@ -108,6 +108,7 @@ def generate_gif(path, fps=1, *, image=None, attention_maps=None, alpha=0.45,
     red for high attention. Per-frame normalization matches save_map.
     Alpha controls the overlay opacity. Optional (x, y) fixations are drawn
     cumulatively, through the fixation corresponding to each frame.
+    Playback loops indefinitely, holding the final fixation for three seconds.
     Without a scene and raw maps, retain the saved-PNG workflow.
     """
     if (image is None) != (attention_maps is None):
@@ -149,7 +150,10 @@ def generate_gif(path, fps=1, *, image=None, attention_maps=None, alpha=0.45,
         )
         images = [imageio.v2.imread(os.path.join(path, name)) for name in file_names]
 
-    imageio.mimsave(os.path.join(path, 'attention.gif'), images, fps=fps)
+    durations = [1000 / fps] * (len(images) - 1) + [3000]
+    imageio.mimsave(os.path.join(path, 'attention.gif'), images,
+                   format='pillow', duration=durations if len(images) > 1 else 3000,
+                   loop=0)
 
 def get_size_level(max_size, levels, area):
 

@@ -1,10 +1,6 @@
 <p align="center">
   <img src="attention.gif" alt="SemBA visual search: evolving attention heatmaps and the cumulative fixation scanpath over the scene" width="900">
 </p>
-<p align="center">
-  <em>Visual search, one fixation at a time.</em><br>
-  Semantic attention maps and the evolving scanpath, powered by SemBA.
-</p>
 
 # Semantic-based Bayesian Attention Framework
 
