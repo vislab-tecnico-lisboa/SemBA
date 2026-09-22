@@ -1,37 +1,41 @@
-###################################################################################################################
-# Sematic Information Model Functions for SemBA x MS-Fovea                                                        #
-###################################################################################################################
+"""Semantic observation and belief fusion for SemBA."""
 
 import numpy as np
 
-# Kaplan's Update Rule 
+
 def kaplan(belief, scores):
+    """Apply Kaplan's rule along the final (class) axis.
 
-    return np.multiply(belief,
-                       1+scores/sum(np.multiply(scores,belief))/(1+min(scores)/sum(np.multiply(scores,belief))))
-    
- 
-# Fusion Model (Kaplan's Rule)
+    Leading dimensions may represent multiple cells. All-zero observations
+    carry no information and leave the beliefs unchanged.
+    """
+    belief = np.asarray(belief)
+    scores = np.asarray(scores)
+    weighted_sum = np.sum(scores * belief, axis=-1, keepdims=True)
+    denominator = weighted_sum + np.min(scores, axis=-1, keepdims=True)
+    update = np.divide(scores, denominator, out=np.zeros_like(belief, dtype=float),
+                       where=denominator != 0)
+    return belief * (1 + update)
+
+
 def fusion_model(state, scores):
-
-    state = np.ndarray.copy(state)
-
+    """Return updated beliefs without modifying the input state."""
     return kaplan(state, scores)
 
 
-# Foveal Observation Model
-def fov_observation_model(data,total_classes):
+def fov_observation_model(data, total_classes):
+    """Extract class scores, including a correctly shaped empty result."""
+    data = np.asarray(data)
+    if data.size == 0:
+        return np.empty((0, total_classes))
+    return data[:, 4:total_classes + 4]
 
-    if len(data) != 0: dat = data[:,4:(total_classes+4)]
 
-    return dat
-
-# Target Class Attention Map
 def attention_map(map, cells, class_id):
-
-    aux = np.array(map)
-    sal_map = np.zeros(cells)
-
-    for y in range(sal_map.shape[0]):
-        for x in range(sal_map.shape[1]):
-            sal_map[y,x] = aux[y,x,class_id-1]/np.sum(aux[y,x,:])
+    """Return target probabilities for a one-based foreground class ID."""
+    beliefs = np.asarray(map)
+    if beliefs.shape[:2] != tuple(cells):
+        raise ValueError('The belief grid does not match the requested cell dimensions.')
+    if not 1 <= class_id <= beliefs.shape[-1]:
+        raise ValueError('The target class ID must identify a foreground class.')
+    return beliefs[..., class_id - 1] / beliefs.sum(axis=-1)

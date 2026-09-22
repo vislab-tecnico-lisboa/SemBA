@@ -1,3 +1,11 @@
+<p align="center">
+  <img src="attention.gif" alt="SemBA visual search: evolving attention heatmaps and the cumulative fixation scanpath over the scene" width="900">
+</p>
+<p align="center">
+  <em>Visual search, one fixation at a time.</em><br>
+  Semantic attention maps and the evolving scanpath, powered by SemBA.
+</p>
+
 # Semantic-based Bayesian Attention Framework
 
 ![Static Badge](https://img.shields.io/badge/Ubuntu-22.04-orange)
@@ -45,7 +53,6 @@ python search.py -f examples/bottle.jpg -t bottle -d dfine -l 4 -b 160
 | --category  | -t    | Check the available *CLASS_NAMES* on *utils/configs.py*!                 |
 | --levels    | -l    | Amount of *Multi-Scale Fovea* layers. Recommended 2,3,4, or 5.           |
 | --base_dim  | -b    | Square root of the total number of pixels per layer. Recommended >= 128. |
-
 
 ## Reference
 This repository contains code for the SemBA pipeline, described in the following papers: 

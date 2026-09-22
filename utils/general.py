@@ -42,14 +42,12 @@ def save_map(map, path, idx):
     plt.savefig(path+f"/map_fix{idx}.png",bbox_inches='tight',pad_inches=0,dpi=400)    
     plt.clf() 
 
-# print scanpath on top of the original image
-def plot_scanpath(img, xs, ys, file_name="scanpath.png", title=None):
-    fig, ax = plt.subplots()
-    ax.imshow(img)
+def _draw_scanpath(ax, xs, ys):
+    """Draw numbered fixations, highlighting the most recent fixation."""
 
     for i in range(len(xs)):
         if i > 0:
-            plt.arrow(xs[i - 1], ys[i - 1],
+            ax.arrow(xs[i - 1], ys[i - 1],
                         xs[i] - xs[i - 1],
                         ys[i] - ys[i - 1],
                         width=6,
@@ -68,30 +66,90 @@ def plot_scanpath(img, xs, ys, file_name="scanpath.png", title=None):
                                 radius=cir_rad, edgecolor='red',
                                 facecolor='yellow', alpha=1.0)
         ax.add_patch(circle)
-        plt.annotate("{}".format(i), xy=(xs[i], ys[i]+3),
-                        fontsize=10, ha="center", va="center")
+        ax.annotate("{}".format(i), xy=(xs[i], ys[i]+3),
+                        fontsize=14, ha="center", va="center")
 
+
+def plot_scanpath(img, xs, ys, file_name="scanpath.png", title=None):
+    """Save the full scanpath on top of the original image."""
+    fig, ax = plt.subplots()
+    ax.imshow(img)
+    _draw_scanpath(ax, xs, ys)
     ax.axis('off')
     if title is not None:
         ax.set_title(title)
-    plt.savefig(file_name,bbox_inches='tight',pad_inches=0,dpi=300)
-    #plt.show()
-    plt.clf() 
+    fig.savefig(file_name, bbox_inches='tight', pad_inches=0, dpi=300)
+    plt.close(fig)
 
-def generate_gif(path, fps=1):
+def _scanpath_frame(image, fixations):
+    """Render the shared scanpath style at the image's exact pixel dimensions."""
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    from matplotlib.figure import Figure
+
+    height, width = image.shape[:2]
+    figure = Figure(figsize=(width / 100, height / 100), dpi=100)
+    canvas = FigureCanvasAgg(figure)
+    ax = figure.add_axes((0, 0, 1, 1))
+    ax.imshow(image)
+    _draw_scanpath(ax, fixations[:, 0], fixations[:, 1])
+    # Keep edge markers from changing the scene's extent.
+    ax.set_xlim(-0.5, width - 0.5)
+    ax.set_ylim(height - 0.5, -0.5)
+    ax.axis('off')
+    canvas.draw()
+    return np.asarray(canvas.buffer_rgba())[..., :3].copy()
+
+
+def generate_gif(path, fps=1, *, image=None, attention_maps=None, alpha=0.45,
+                 fixations=None):
+    """Save attention.gif, optionally overlaying smooth heatmaps on the RGB scene.
+
+    Raw maps are supplied in fixation order, with blue for low attention and
+    red for high attention. Per-frame normalization matches save_map.
+    Alpha controls the overlay opacity. Optional (x, y) fixations are drawn
+    cumulatively, through the fixation corresponding to each frame.
+    Without a scene and raw maps, retain the saved-PNG workflow.
+    """
+    if (image is None) != (attention_maps is None):
+        raise ValueError('Provide both image and attention_maps for an overlay.')
+    if not 0 <= alpha <= 1:
+        raise ValueError('Overlay alpha must be between 0 and 1.')
+
+    if fixations is not None:
+        if image is None:
+            raise ValueError('Scanpaths require an image and attention maps.')
+        fixations = np.asarray(fixations)
+        if fixations.ndim != 2 or fixations.shape[1] != 2:
+            raise ValueError('Fixations must be a sequence of (x, y) coordinates.')
+        if len(fixations) < len(attention_maps):
+            raise ValueError('Each attention map must have a corresponding fixation.')
 
     images = []
+    if image is not None:
+        from skimage.util import img_as_ubyte
 
-    for file_name in sorted(os.listdir(path)):
-        if file_name.endswith('.png'):
-            file_path = os.path.join(path, file_name)
-            images.append(imageio.imread(file_path))
+        scene = img_as_ubyte(image)
+        height, width = scene.shape[:2]
+        colormap = plt.get_cmap('jet')
+        for index, attention in enumerate(attention_maps):
+            attention = np.asarray(attention, dtype=float)
+            # Normalize before interpolation to preserve the original color scale.
+            normalized = plt.Normalize()(attention)
+            smooth = cv.resize(np.asarray(normalized), (width, height),
+                               interpolation=cv.INTER_CUBIC)
+            heatmap = np.round(colormap(np.clip(smooth, 0, 1))[..., :3] * 255).astype(np.uint8)
+            frame = cv.addWeighted(scene, 1 - alpha, heatmap, alpha, 0)
+            if fixations is not None:
+                frame = _scanpath_frame(frame, fixations[:index + 1])
+            images.append(frame)
+    else:
+        file_names = sorted(
+            (name for name in os.listdir(path) if re.fullmatch(r"map_fix\d+\.png", name)),
+            key=lambda name: int(re.search(r"\d+", name).group()),
+        )
+        images = [imageio.v2.imread(os.path.join(path, name)) for name in file_names]
 
-    # Make it pause at the end so that the viewers can ponder
-    #for _ in range(10):
-    #    images.append(imageio.imread(file_path))
-
-    imageio.mimsave(path+'/attention.gif', images, fps=fps)
+    imageio.mimsave(os.path.join(path, 'attention.gif'), images, fps=fps)
 
 def get_size_level(max_size, levels, area):
 
