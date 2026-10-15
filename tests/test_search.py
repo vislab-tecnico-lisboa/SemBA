@@ -1,5 +1,9 @@
 """Regression checks for grid fusion and search termination, without model downloads."""
 
+# =============================================================================
+# 1. Test dependencies; detector inference is mocked below
+# =============================================================================
+
 import contextlib
 import io
 import sys
@@ -12,11 +16,24 @@ import search
 from utils import general, semba
 
 
+# =============================================================================
+# 2. Regression coverage for belief updates and search control
+# =============================================================================
+
 class SearchTests(unittest.TestCase):
+
+    # -------------------------------------------------------------------------
+    # 2.1. Kaplan fusion: vectorization, invariants, and zero evidence
+    # -------------------------------------------------------------------------
+
     def test_batched_fusion_matches_scalar_rule(self):
+        """Check batch fusion against the scalar equation and preserve input beliefs."""
+
         rng = np.random.default_rng(42)
         beliefs = rng.random((20, 80)) + 1
         scores = rng.random(80)
+
+        # Use the scalar equation as an independent reference for each cell.
         expected = np.array(
             [
                 state
@@ -31,11 +48,16 @@ class SearchTests(unittest.TestCase):
         np.testing.assert_array_equal(semba.fusion_model(beliefs, scores * 0), beliefs)
 
     def test_kaplan_uniform_scores_leave_beliefs_unchanged(self):
+        """Verify that equal class evidence produces no preference or belief change."""
+
         beliefs = np.array([1.0, 2.0, 4.0])
         np.testing.assert_array_equal(semba.kaplan(beliefs, [0.5] * 3), beliefs)
 
     def test_kaplan_known_update_and_score_scaling(self):
+
         # Equation (1): Z = 7 and m = 2 give [1, 2] * [10/9, 9/9].
+        """Check a hand-computed update and invariance to positive score scaling."""
+
         beliefs = np.array([1.0, 2.0])
         scores = np.array([3.0, 2.0])
         expected = [10.0 / 9.0, 2.0]
@@ -43,19 +65,31 @@ class SearchTests(unittest.TestCase):
         np.testing.assert_allclose(semba.kaplan(beliefs, scores * 10), expected)
 
     def test_kaplan_grid_with_per_cell_and_zero_observations(self):
+        """Update cells independently and reject invalid arithmetic for zero evidence."""
+
         beliefs = np.array([[[1.0, 2.0], [3.0, 4.0]]])
         scores = np.array([[[3.0, 2.0], [0.0, 0.0]]])
         with np.errstate(divide="raise", invalid="raise"):
             actual = semba.kaplan(beliefs, scores)
         np.testing.assert_allclose(actual, [[[10.0 / 9.0, 2.0], [3.0, 4.0]]])
 
+    # -------------------------------------------------------------------------
+    # 2.2. Grid geometry and inhibition-aware fixation selection
+    # -------------------------------------------------------------------------
+
     def test_overlap_matches_existing_inclusive_iou(self):
+        """Match vectorized cell masks to scalar overlap checks, including boundaries."""
+
         rng = np.random.default_rng(42)
         shape, height, width = (20, 32), 1050, 1680
+
+        # Include boundary contact and off-scene boxes before random coverage.
         boxes = [[0, 0, 52.5, 52.5], [-10, -10, 0, 0], [1680, 1050, 1700, 1100]]
         for _ in range(100):
             start = rng.uniform(-200, 1800, size=2)
             boxes.append([*start, *(start + rng.uniform(0, 500, size=2))])
+
+        # Compare the vectorized mask against the scalar IoU-based helper.
         for box in boxes:
             expected = [
                 [
@@ -70,6 +104,8 @@ class SearchTests(unittest.TestCase):
             np.testing.assert_array_equal(actual, expected)
 
     def test_fixation_selection_and_exhaustion(self):
+        """Cover best available cells, exhausted grids, and valid random tie choices."""
+
         attention = np.array([[1.0, 0.5], [0.2, 0.1]])
         inhibited = np.array([[True, False], [False, False]])
         self.assertEqual(search.next_fixation(attention, inhibited), (0, 1))
@@ -80,19 +116,36 @@ class SearchTests(unittest.TestCase):
             True,
         )
 
+    # -------------------------------------------------------------------------
+    # 2.3. Observation formatting and target probability extraction
+    # -------------------------------------------------------------------------
+
     def test_empty_observations_and_attention(self):
+        """Preserve empty score shapes and normalize the requested foreground class."""
+
         self.assertEqual(semba.fov_observation_model([], 80).shape, (0, 80))
         beliefs = np.array([[[1.0, 3.0], [2.0, 2.0]]])
         np.testing.assert_allclose(
             semba.attention_map(beliefs, (1, 2), 2), [[0.75, 0.5]]
         )
 
+    # -------------------------------------------------------------------------
+    # 2.4. Search lifecycle without model downloads or output files
+    # -------------------------------------------------------------------------
+
     def test_search_with_empty_predictions_and_immediate_success(self):
+        """Check exported frame counts for budget exhaustion and immediate success."""
+
         detector = Mock()
         detector.load_model.return_value = (None, None)
         detector.predict.return_value = [[]] * 4
+
+        # Empty predictions leave uniform beliefs: threshold 1 exhausts the
+        # fixation budget, while threshold 0 succeeds on the first observation.
         for threshold, expected_frames in [(1.0, 7), (0.0, 1)]:
             with self.subTest(threshold=threshold), contextlib.ExitStack() as stack:
+
+                # Replace the lazily imported detector before main loads it.
                 stack.enter_context(
                     patch.dict(sys.modules, {"utils.detectors": detector})
                 )
@@ -106,6 +159,8 @@ class SearchTests(unittest.TestCase):
                 stack.enter_context(
                     patch("search.utils.create_dir", return_value="/tmp/search-test")
                 )
+
+                # Capture export calls without producing visualization files.
                 save = stack.enter_context(patch("search.utils.save_map"))
                 gif = stack.enter_context(patch("search.utils.generate_gif"))
                 plot = stack.enter_context(patch("search.utils.plot_scanpath"))
@@ -115,6 +170,10 @@ class SearchTests(unittest.TestCase):
                 gif.assert_called_once()
                 plot.assert_called_once()
 
+
+# =============================================================================
+# 3. Direct unittest entry point
+# =============================================================================
 
 if __name__ == "__main__":
     unittest.main()

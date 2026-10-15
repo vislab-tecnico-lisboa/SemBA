@@ -4,6 +4,10 @@ Joao Luzio, Institute for Systems and Robotics, Técnico Lisboa, 2026.
 Example: python search.py -f examples/bottle.jpg -t bottle -d dfine -l 4 -b 160
 """
 
+# =============================================================================
+# 1. Command-line, image, and search dependencies
+# =============================================================================
+
 import argparse
 from pathlib import Path
 import random
@@ -26,8 +30,19 @@ from utils.configs import (
 )
 
 
+# =============================================================================
+# 2. Command-line configuration and early validation
+# =============================================================================
+
 def parse_args(argv=None):
-    """Parse and validate settings before loading the detection model."""
+    """Parse and validate settings before loading the detection model.
+
+    argv is an optional sequence of command-line arguments; None reads sys.argv.
+    Returns an argparse Namespace with the image path, detector, target, and
+    fovea dimensions. Invalid choices, dimensions, or paths exit via argparse.
+    """
+
+    # Define the public CLI and collect arguments before validation.
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("-f", "--file_name", default="examples/bottle.jpg")
     parser.add_argument("-d", "--detector", choices=sorted(DETECTORS), default="dfine")
@@ -40,29 +55,47 @@ def parse_args(argv=None):
     if args.levels < 1:
         parser.error("The number of fovea levels must be at least 1.")
 
+    # The supported minimum crop size depends on the detector family.
     min_dim = 64 if args.detector == "detr" else 128
     if args.base_dim < min_dim:
         parser.error(f"The base layer dimension must be at least {min_dim}.")
 
+    # Ensure the scene exists before image decoding or model initialization.
     if not Path(args.file_name).is_file():
         parser.error(f"The file {args.file_name} does not exist.")
 
     return args
 
 
+# =============================================================================
+# 3. Grid overlap and fixation selection
+# =============================================================================
+
 def overlapping_cells(box, x_edges, y_edges):
     """Return a (rows, columns) mask for cells touched by an xyxy box.
 
     The +1 terms match in_cell's inclusive-pixel intersection convention.
     Broadcasting combines independent horizontal and vertical overlaps.
+
+    box contains scene-pixel (xmin, ymin, xmax, ymax) coordinates.
+    x_edges and y_edges contain the column and row boundaries, respectively.
+    The returned boolean array can index the first two axes of the belief grid.
     """
+
     x_overlap = np.minimum(box[2], x_edges[1:]) - np.maximum(box[0], x_edges[:-1]) + 1
     y_overlap = np.minimum(box[3], y_edges[1:]) - np.maximum(box[1], y_edges[:-1]) + 1
     return (y_overlap[:, None] > 0) & (x_overlap[None, :] > 0)
 
 
 def next_fixation(target_map, inhibited):
-    """Choose uniformly among the best available cells, or return None."""
+    """Choose uniformly among the best available cells, or return None.
+
+    target_map and inhibited share shape (rows, columns). Nonzero inhibition
+    entries exclude cells regardless of their attention score. Returns a
+    (row, column) tuple, or None when every cell is inhibited.
+    """
+
+    # Exclude visited neighborhoods before ranking attention values.
     available = ~inhibited.astype(bool)
     if not available.any():
         return None
@@ -73,8 +106,22 @@ def next_fixation(target_map, inhibited):
     return tuple(candidates[random.randrange(len(candidates))])
 
 
+# =============================================================================
+# 4. Visual search pipeline
+# =============================================================================
+
 def main(argv=None):
-    """Run visual search and save attention maps, an animation, and a scanpath."""
+    """Run visual search and save attention maps, an animation, and a scanpath.
+
+    argv follows parse_args conventions. Each fixation produces a batch of
+    foveal observations, updates the semantic grid, and selects the next cell.
+    Outputs are written under a new runs/run_N directory. Keyboard interruption
+    still permits export of observations collected so far; no value is returned.
+    """
+
+    # -------------------------------------------------------------------------
+    # 4.1. Load the scene and initialize perception
+    # -------------------------------------------------------------------------
 
     args = parse_args(argv)
     image = skimage.io.imread(args.file_name)
@@ -88,13 +135,19 @@ def main(argv=None):
     foveator = MS_Foveation(args.levels, args.base_dim, scale_factor=2)
     model, processor = detect.load_model(args.detector, args.base_dim)
 
+    # -------------------------------------------------------------------------
+    # 4.2. Initialize semantic beliefs, grid geometry, and run history
+    # -------------------------------------------------------------------------
+
     # Arrays use (row, column); image coordinates and fixations use (x, y).
     map_shape = (Y_CELLS, X_CELLS)
     total_classes = len(CLASS_NAMES) - 1
     target_class = CLASS_NAMES.index(args.category)
+
     # Each cell starts with equal, unnormalized beliefs over foreground classes.
     # CLASS_NAMES includes background, but the belief axis excludes it.
     beliefs = np.ones((*map_shape, total_classes))
+
     # Inhibition of return prevents selection of marked cells as future fixations.
     inhibited = np.zeros(map_shape, dtype=bool)
 
@@ -107,6 +160,10 @@ def main(argv=None):
     center = np.array([width // 2, height // 2])
     attention_maps, centers, durations = [], [], []
 
+    # -------------------------------------------------------------------------
+    # 4.3. Display the configuration used for this run
+    # -------------------------------------------------------------------------
+
     print(f"\nDeep Object Detector: {args.detector}")
     print(
         f"Multi-Scale Fovea Dimensions: {args.levels}x{args.base_dim}x{args.base_dim}"
@@ -115,13 +172,22 @@ def main(argv=None):
     print(f"Image dims (height, width): {height}, {width}")
     print(f"Target Class: {args.category} ({target_class})")
 
+    # -------------------------------------------------------------------------
+    # 4.4. Alternate observation, belief fusion, and fixation selection
+    # -------------------------------------------------------------------------
+
     try:
+
         # Preserve the initial fixation plus MAX_FIX subsequent fixations.
         for fixation in range(MAX_FIX + 1):
             print(f"\nFocal point {fixation}: [{column},{row}] -> {center}")
             start = time.perf_counter()
 
-            # Observe concentric crops, all resized to the detector input size.
+            # -----------------------------------------------------------------
+            # 4.4.1. Observe: sample the scene and detect objects in every layer
+            # -----------------------------------------------------------------
+
+            # All crops share the detector input size despite different coverage.
             layers = foveator.foveate(image, center)
             centers.append(center.copy())
             predictions = detect.predict(
@@ -132,9 +198,15 @@ def main(argv=None):
                 is_detr=args.detector == "detr",
             )
 
-            # Map each detection back to the scene and update every touched cell.
+            # -----------------------------------------------------------------
+            # 4.4.2. Fuse: project detections onto the persistent belief grid
+            # -----------------------------------------------------------------
+
+            # Update every cell touched by each scene-space detection.
+            # Remapping expects one-based levels; detector batches keep crop order.
             for level, detections in enumerate(predictions, start=1):
                 if len(detections) == 0:
+
                     # An empty layer inhibits the current fixation neighborhood.
                     utils.ior_in_area(inhibited, row, column, map_shape)
                     continue
@@ -144,12 +216,25 @@ def main(argv=None):
                 for detection, observation in zip(detections, scores):
                     box = foveator.bbox_remapping(detection[:4].copy(), level, center)
                     mask = overlapping_cells(box, x_edges, y_edges)
+
+                    # Boolean indexing selects all affected cells; assign the
+                    # fused values back because indexing produces a separate array.
                     beliefs[mask] = semba.fusion_model(beliefs[mask], observation)
+
+            # -----------------------------------------------------------------
+            # 4.4.3. Evaluate: turn target beliefs into an attention map
+            # -----------------------------------------------------------------
 
             # Normalize class beliefs to obtain the target probability per cell.
             target_map = semba.attention_map(beliefs, map_shape, target_class)
             attention_maps.append(target_map.copy())
+
+            # Success is evaluated where the eye is currently fixated.
             found = target_map[row, column] >= TERMINATION_THRESH
+
+            # -----------------------------------------------------------------
+            # 4.4.4. Move: choose the next eligible fixation, if needed
+            # -----------------------------------------------------------------
 
             # Stop on sufficient confidence at the current cell, budget exhaustion,
             # or the absence of any uninhibited candidate for the next fixation.
@@ -162,6 +247,10 @@ def main(argv=None):
                     cy, cx = utils.cell_center(row, column, map_shape, height, width)
                     center = np.array([int(cx), int(cy)])
 
+            # -----------------------------------------------------------------
+            # 4.4.5. Record elapsed perception time and apply the stop decision
+            # -----------------------------------------------------------------
+
             durations.append(time.perf_counter() - start)
             print(f"Time elapsed during active perception: {durations[-1]:.2f} seconds")
 
@@ -169,6 +258,10 @@ def main(argv=None):
                 break
     except KeyboardInterrupt:
         print("\nInterrupted!")
+
+    # -------------------------------------------------------------------------
+    # 4.5. Report timing and export the recorded search
+    # -------------------------------------------------------------------------
 
     average_time = sum(durations) / len(durations) if durations else 0.0
     print(f"\nAverage time per fixation: {average_time:.2f} seconds")
@@ -178,6 +271,7 @@ def main(argv=None):
     for index, attention in enumerate(attention_maps):
         utils.save_map(attention, str(path), index)
 
+    # Animate completed maps together with their corresponding fixations.
     if attention_maps:
         utils.generate_gif(
             str(path),
@@ -187,6 +281,7 @@ def main(argv=None):
             fixations=centers,
         )
 
+    # Save a static overview of every sampled fixation on the original scene.
     if centers:
         coordinates = np.asarray(centers)
         utils.plot_scanpath(
@@ -196,6 +291,10 @@ def main(argv=None):
             file_name=str(path / "scanpath.png"),
         )
 
+
+# =============================================================================
+# 5. Script entry point
+# =============================================================================
 
 if __name__ == "__main__":
     main()
